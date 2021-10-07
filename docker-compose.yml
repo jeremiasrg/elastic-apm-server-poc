@@ -1,0 +1,64 @@
+version: "3"
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
+    container_name: elasticsearch
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      discovery.type: single-node
+    networks:
+      - elastic
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.9.2
+    container_name: kibana
+    ports:
+      - 5601:5601
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    networks:
+      - elastic
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:7.9.2
+    container_name: apm-server
+    ports:
+      - 8200:8200
+    depends_on:
+     - elasticsearch
+     - kibana
+    environment:
+      user: apm-server
+    volumes:
+      - "./apm-server.docker.yml:/usr/share/apm-server/apm-server.yml:ro"
+    # entrypoint: "apm-server -e -strict.perms=false"
+    command: >
+      apm-server -e
+        -E apm-server.rum.enabled=true
+        -E setup.kibana.host=kibana:5601
+        -E setup.template.settings.index.number_of_replicas=0
+        -E apm-server.kibana.enabled=true
+        -E apm-server.kibana.host=kibana01:5601
+        -E output.elasticsearch.hosts=["elasticsearch:9200"]
+    command: apm-server -e -strict.perms=false
+    networks:
+      - elastic
+
+  flask-api:
+    image: jeremiasrg/flask-apm-test
+    container_name: flask-api
+    ports:
+      - 5000:5000
+    environment:
+      SERVER_URL: http://apm-server:8200
+      APP_NAME: flask-apm-client
+      SERVICE_NAME: Flask-python-APM-Test
+    networks:
+      - elastic
+
+networks:
+  elastic:
+    driver: bridge
