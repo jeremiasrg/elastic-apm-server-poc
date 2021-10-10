@@ -47,17 +47,48 @@ services:
     networks:
       - elastic
 
-  flask-api:
-    image: jeremiasrg/flask-apm-test
-    container_name: flask-api
+  flask-pony-db:
+    container_name: flask-pony-db
+    image: mysql:5.7.22
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      TZ: America/Sao_Paulo
+      MYSQL_ROOT_PASSWORD: Test123
+      MYSQL_USER: docker
+      MYSQL_PASSWORD: Test123
+      MYSQL_DATABASE: soccer_teams
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_TCP_PORT: 3306
+    ports:
+      - 3306:3306
+    expose:
+      - 3306
+    networks:
+      - elastic
+    depends_on:
+     - elasticsearch
+     - kibana
+
+  flask-pony-api:
+    image: jeremiasrg/flask-api-ponyorm
+    container_name: flask-pony-api
+    restart: always
     ports:
       - 5000:5000
     environment:
       SERVER_URL: http://apm-server:8200
-      APP_NAME: flask-apm-client
-      SERVICE_NAME: Flask-python-APM-Test
+      APP_NAME: flask-pony-apm-client
+      SERVICE_NAME: Flask-pony-APM-Test
+      DB_HOST: flask-pony-db
+      DB_USER: docker
+      DB_PASS: Test123
     networks:
       - elastic
+    depends_on:
+     - elasticsearch
+     - kibana
+     - flask-pony-db
 
 networks:
   elastic:
